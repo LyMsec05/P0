@@ -53,8 +53,9 @@ class Position:
 #########################################
 
 T_EXEC = 'EXEC'
-T_NEWVAR = 'NEWVAR'
-T_NEWMACRO = 'NEWMACRO'
+T_NEW = 'NEW'
+T_VAR = 'VAR'
+T_MACRO = 'MAACRO'
 T_LPAR = 'LPAR'  # Left Parenthesis
 T_RPAR = 'RPAR'
 T_LCOR = 'LCOR'  # Left Corchete
@@ -89,6 +90,8 @@ DIGITS = '0123456789'
 LETRAS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' 
 T_INT = 'INT'
 T_FLOAT = 'FLOAT'
+
+T_VALIDVAR = 'VALIDVAR'
 
 
 class Token:
@@ -127,6 +130,9 @@ class Lexer:
             elif self.current_char in DIGITS:
                 tokens.append(self.make_number()) #identificar si un caracter esta en 'digitos' 
                 #ya que el numero puede tener mas de un caracter y arrojara un entero o un flotante
+            
+            elif self.current_char in LETRAS:
+                tokens.append(self.make_word())
             
             elif self.current_char == ';':
                 tokens.append(Token(T_SEMICOLON))
@@ -171,12 +177,115 @@ class Lexer:
             return Token(T_INT, int(num_str))
         else:
             return Token(T_FLOAT, float(num_str))
+        
+    def make_word(self):
+        word_str = ''
+        while self.current_char != None and self.current_char in LETRAS:
+            word_str += self.current_char
+            self.advance()
+        if word_str == 'EXEC':
+            return Token(T_EXEC, 'EXEC')
+        elif word_str == 'NEW':
+            return Token(T_NEW, 'NEW')
+        elif word_str == 'VAR':
+            return Token(T_VAR, 'VAR')
+        elif word_str == 'MACRO':
+            return Token(T_MACRO, 'MACRO')
+        else: 
+            return Token(T_VALIDVAR, 'VALIDVAR') #Hay que agregar un return false si no es valido
 
+####
+# PARSER
+###
+class Parser:
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.tok_idx = -1
+        self.current_tok = None
+        self.advance()
+        
+    def advance(self):
+        self.tok_idx += 1
+        if self.tok_idx < len(self.tokens):
+            self.current_tok = self.tokens[self.tok_idx]
+        else: self.current_tok = None #no esta en el video
+        return self.current_tok # no es necesario a menos de que necesitemos validar algo
+    
+    def parse(self):
+        while self.current_tok is not None:
+            if not (self.exec() or self.new()):
+                return False
+            self.advance()
+        return True
+   
+    def exec(self):
+        tok = self.current_tok
+        if tok.type == T_EXEC:
+            self.advance()
+            # Llamado al bloque
+            if self.current_tok.type == T_LCOR:
+                if not self.block():
+                    return False
+                return True
+        else: return False
+    
+    def new(self):
+        if self.current_tok.type == T_NEW:
+            self.advance()
+            if self.current_tok.type == T_VAR:
+                self.advance()
+                if self.current_tok.type == T_VALIDVAR:
+                    self.advance()
+                    if self.current_tok == T_IGUAL:
+                        self.advance()
+                        if self.current_tok == T_INT: 
+                            # no se termina con advance porq parse lo llama
+                            return True
+                return False # Falso cuando NEW VAR no esta correcto
+            elif self.current_tok.type == T_MACRO:
+                self.advance()
+                macro_name = self.current_tok
+                self.advance()
+                #Llamado al bloque
+                if self.current_tok.type == T_LCOR:
+                    if not self.block():
+                        return False
+                return True
+                
+        return False
+    
+    def block(self):
+        if self.current_tok.type == T_LCOR:
+            self.advance()
+            corchete_abierto = 1
+            while corchete_abierto > 0:
+                
+                #Para no entrar en un loop infinito porque no  haya un par 
+                # completo de corchetes O no haya mas tokens
+                if self.current_tok.type is None:
+                    return False
+                
+                if self.current_tok.type == T_LCOR:
+                    corchete_abierto += 1
+                elif self.current_tok.type == T_RCOR:
+                    corchete_abierto -= 1
+                    if corchete_abierto == 0: 
+                        self.advance()
+                        return True
+                
+                if not (self.new() or self.exec()):
+                    return False
+                self.advance()
+                
+        
 #######
 #RUN
 ###################
 def run(fn, text):
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
+    
+    parser = Parser(tokens)
+    result = parser.parse()
 
-    return tokens, error
+    return tokens, error, result

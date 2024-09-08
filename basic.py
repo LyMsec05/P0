@@ -61,7 +61,7 @@ T_RPAR = 'RPAR'
 T_LCOR = 'LCOR'  # Left Corchete
 T_RCOR = 'RCOR'
 T_IGUAL = 'IGUAL'     # Igual
-T_TURNTOMY = 'TURNTO'
+T_TURNTOMY = 'TURNTOMY'
 T_TURNTOTHE = 'TURNTOTHE'
 T_WALK = 'WALK'
 T_JUMP = 'JUMP'
@@ -92,6 +92,20 @@ T_INT = 'INT'
 T_FLOAT = 'FLOAT'
 
 T_VALIDVAR = 'VALIDVAR'
+T_COMA = ','
+#Para 'TURNTOMY' y 'MOVES'
+T_LEFT = 'LEFT'
+T_RIGHT = 'RIGHT'
+T_BACK = 'BACK'
+# Para 'TURNTOTHE'
+T_NORTH = 'NORTH'
+T_SOUTH = 'SOUTH'
+T_EAST = 'EAST'
+T_WEST = 'WEST'
+#Para 'MOVES'
+T_FORWARD = 'FORWARD'
+T_BACKWARDS = 'BACKWARDS'
+
 
 
 class Token:
@@ -152,6 +166,9 @@ class Lexer:
             elif self.current_char == ')':
                 tokens.append(Token(T_RPAR))
                 self.advance()
+            elif self.current_char == ',':
+                tokens.append(Token(T_COMA))
+                self.advance()
             else: #si no encontramso el caracter q estamos buscando debemos arrojar un error
                 pos_start = self.pos.copy()
                 char = self.current_char
@@ -183,6 +200,9 @@ class Lexer:
         while self.current_char != None and self.current_char in LETRAS:
             word_str += self.current_char
             self.advance()
+        
+        word_str = word_str.upper()
+        
         if word_str == 'EXEC':
             return Token(T_EXEC, 'EXEC')
         elif word_str == 'NEW':
@@ -191,8 +211,49 @@ class Lexer:
             return Token(T_VAR, 'VAR')
         elif word_str == 'MACRO':
             return Token(T_MACRO, 'MACRO')
+        elif word_str == 'TURNTOMY':
+            return Token(T_TURNTOMY, 'TURNTOMY')
+        elif word_str == 'LEFT':
+            return Token(T_LEFT, 'LEFT')
+        elif word_str == 'RIGHT':
+            return Token(T_RIGHT, 'RIGHT')
+        elif word_str == 'BACK':
+            return Token(T_BACK, 'BACK')
+        elif word_str == 'TURNTOTHE':
+            return Token(T_TURNTOMY, 'TURNTOTHE')
+        elif word_str == 'NORTH':
+            return Token(T_NORTH, 'NORTH')
+        elif word_str == 'SOUTH':
+            return Token(T_SOUTH, 'SOUTH')
+        elif word_str == 'EAST':
+            return Token(T_EAST, 'EAST')
+        elif word_str == 'WEST':
+            return Token(T_WEST, 'WEST')
+        elif word_str == 'WALK':
+            return Token(T_WALK, 'WALK')
+        elif word_str == "JUMP":
+            return Token(T_JUMP, 'JUMP')
+        elif word_str == 'DROP':
+            return Token(T_DROP, 'DROP')
+        elif word_str == 'PICK':
+            return Token(T_PICK, 'PICK')
+        elif word_str == 'LETGO':
+            return Token(T_LETGO, 'LETGO')
+        elif word_str == 'GRAB':
+            return Token(T_GRAB, "GRAB")
+        elif word_str == 'POP':
+            return Token(T_POP, 'GRAB')
+        elif word_str == 'NOP':
+            return Token(T_NOP, 'NOP')
+        elif word_str == 'MOVES':
+            return Token(T_MOVES, 'MOVES')
+        elif word_str == 'FORWARD':
+            return Token(T_FORWARD, 'FORWARD')
+        elif word_str == 'BACKWARDS':
+            return Token(T_BACKWARDS, 'BACKWARDS')
+        
         else: 
-            return Token(T_VALIDVAR, 'VALIDVAR') #Hay que agregar un return false si no es valido
+            return Token(T_VALIDVAR, 'VALIDVAR') #Hay que agregar un return false si no es valido?
 
 ####
 # PARSER
@@ -213,10 +274,9 @@ class Parser:
     
     def parse(self):
         while self.current_tok is not None:
-            if not (self.exec() or self.new()):
-                return False
-            self.advance()
-        return True
+            if (self.exec() or self.new()):
+                return True
+        return False
    
     def exec(self):
         tok = self.current_tok
@@ -224,35 +284,59 @@ class Parser:
             self.advance()
             # Llamado al bloque
             if self.current_tok.type == T_LCOR:
-                if not self.block():
+                if not (self.block()):
                     return False
                 return True
         else: return False
     
     def new(self):
+        if self.current_tok is None:
+            return False  # Verifica si no hay tokens 
+        
         if self.current_tok.type == T_NEW:
             self.advance()
             if self.current_tok.type == T_VAR:
                 self.advance()
                 if self.current_tok.type == T_VALIDVAR:
                     self.advance()
-                    if self.current_tok == T_IGUAL:
+                    if self.current_tok.type == T_IGUAL:
                         self.advance()
-                        if self.current_tok == T_INT: 
-                            # no se termina con advance porq parse lo llama
+                        if self.current_tok.type == T_INT: 
+                            self.advance()
                             return True
                 return False # Falso cuando NEW VAR no esta correcto
             elif self.current_tok.type == T_MACRO:
                 self.advance()
-                macro_name = self.current_tok
-                self.advance()
-                #Llamado al bloque
-                if self.current_tok.type == T_LCOR:
-                    if not self.block():
-                        return False
-                return True
-                
-        return False
+                if self.current_tok.type == T_VALIDVAR: # nombre del macro
+                    self.advance()
+                    if self.current_tok.type == T_LPAR:
+                        self.advance()
+                        # Para revisar los parametros
+                        while self.current_tok.type == T_VALIDVAR:
+                            self.advance()
+                            if self.current_tok.type == T_COMA:  # espera una coma para más parámetros
+                                self.advance()
+                                if self.current_tok.type != T_VALIDVAR:  # después de una coma debe venir otro parámetro
+                                    return False
+                            elif self.current_tok.type == T_RPAR:  # fin de los parámetros
+                                break
+                            else:
+                                return False # Si el prox token no es valido o es None
+                            
+                    if self.current_tok.type == T_RPAR:
+                        self.advance()
+                    else:
+                        return False    
+                              
+                    if self.current_tok.type == T_LCOR:
+                        if self.current_tok == None:
+                            return True
+                        
+                        return self.block()
+
+                return False  # Falso cuando NEW MACRO no esta correcto    
+                          
+        return False # Falso cuando NEW no est correcto
     
     def block(self):
         if self.current_tok.type == T_LCOR:
@@ -262,7 +346,9 @@ class Parser:
                 
                 #Para no entrar en un loop infinito porque no  haya un par 
                 # completo de corchetes O no haya mas tokens
-                if self.current_tok.type is None:
+                if self.current_tok is None:
+                    print(self.current_tok)
+                    print("a")
                     return False
                 
                 if self.current_tok.type == T_LCOR:
@@ -273,11 +359,145 @@ class Parser:
                         self.advance()
                         return True
                 
-                if not (self.new() or self.exec()):
+                if self.current_tok.type not in [T_LCOR, T_RCOR, T_NEW, T_EXEC]:
+                    print('b')
                     return False
+                
+                if self.current_tok.type == T_NEW:
+                    if self.new():
+                        print('c')
+                        return True
+                elif self.current_tok.type == T_EXEC:
+                    if self.exec():
+                        return True
+                
+                
                 self.advance()
                 
+    def turntomy(self):
+        if self.current_tok.type != T_TURNTOMY:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance
+            if self.current_tok.type in [T_LEFT, T_RIGHT, T_BACK]:
+                self.advance()
+                if self.current_tok.type == T_RPAR:
+                    return True
         
+        return False # Si no es correcto
+    
+    def turntothe(self):
+        if self.current_tok.type != T_TURNTOTHE:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance
+            if self.current_tok.type in [T_NORTH, T_SOUTH, T_EAST, T_WEST]:
+                self.advance()
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False # Si no es correcto
+        
+    def walk(self):
+        if self.current_tok.type != T_WALK:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def jump(self):
+        if self.current_tok.type != T_JUMP:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def drop(self):
+        if self.current_tok.type != T_DROP:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def pick(self):
+        if self.current_tok.type != T_PICK:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def grab(self):
+        if self.current_tok.type != T_GRAB:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def letgo(self):
+        if self.current_tok.type != T_LETGO:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def pop(self):
+        if self.current_tok.type != T_POP:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            if self.current_tok.type == T_INT:
+                self.advance() 
+                if self.current_tok.type == T_RPAR:
+                    return True
+        
+        return False
+    
+    def moves(self):
+        if self.current_tok.type != T_MOVES:
+            return False
+        self.advance()
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            
 #######
 #RUN
 ###################

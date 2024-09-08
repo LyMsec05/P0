@@ -368,7 +368,7 @@ class Parser:
                         print('c')
                         return True
                 elif self.current_tok.type == T_EXEC:
-                    if self.exec():
+                    if self.exec(): # not self para q siga el while
                         return True
                 
                 
@@ -496,7 +496,18 @@ class Parser:
             return False
         self.advance()
         if self.current_tok.type == T_LPAR:
-            self.advance()
+            self.advance() # primera direccion o RPAR si es vacio
+            while self.current_tok.type != T_RPAR:
+                if self.current_tok.type == False:
+                    pass
+            
+            
+            if self.current_tok.type == T_RPAR:
+                    return True 
+        return False # si no existe un (
+                
+                
+            
             
 #######
 #RUN
@@ -506,6 +517,6 @@ def run(fn, text):
     tokens, error = lexer.make_tokens()
     
     parser = Parser(tokens)
-    result = parser.parse()
+    ToF_parse = parser.parse()
 
-    return tokens, error, result
+    return tokens, error, ToF_parse

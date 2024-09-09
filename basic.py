@@ -79,6 +79,7 @@ T_ELSE = 'ELSE'
 T_FI = 'FI'
 T_DO = 'DO'
 T_OD = 'OD'
+T_QUESTION = '?'
 T_TIMES = 'TIMES'
 T_REPEAT = 'REPEAT'
 T_ISBLOCKLED = 'ISBLOCKED?'
@@ -254,6 +255,7 @@ class Lexer:
             return Token(T_FORWARD, 'FORWARD')
         elif word_str == 'BACKWARDS':
             return Token(T_BACKWARDS, 'BACKWARDS')
+        
         elif word_str == 'IF':
             return Token(T_IF, 'IF')
         elif word_str == 'THEN':
@@ -262,6 +264,7 @@ class Lexer:
             return Token(T_ELSE, 'ELSE')
         elif word_str == 'FI':
             return Token(T_FI, 'FI')
+        
         else: 
             return Token(T_VALIDVAR, 'VALIDVAR') #Hay que agregar un return false si no es valido?
 
@@ -281,8 +284,7 @@ class Parser:
             self.current_tok = self.tokens[self.tok_idx]
         else: 
             self.current_tok = None #no esta en el video
-        print(f"Advanced to: {self.current_tok}")
-    
+        return self.current_tok # no es necesario a menos de que necesitemos validar algo
     
     def parse(self):
         while self.current_tok is not None:

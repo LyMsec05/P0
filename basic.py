@@ -79,6 +79,7 @@ T_ELSE = 'ELSE'
 T_FI = 'FI'
 T_DO = 'DO'
 T_OD = 'OD'
+T_QUESTION = '?'
 T_TIMES = 'TIMES'
 T_REPEAT = 'REPEAT'
 T_ISBLOCKLED = 'ISBLOCKED?'
@@ -169,6 +170,9 @@ class Lexer:
             elif self.current_char == ',':
                 tokens.append(Token(T_COMA))
                 self.advance()
+            elif self.current_char == '?':
+                tokens.append(Token(T_QUESTION))
+                self.advance()
             else: #si no encontramso el caracter q estamos buscando debemos arrojar un error
                 pos_start = self.pos.copy()
                 char = self.current_char
@@ -252,6 +256,15 @@ class Lexer:
         elif word_str == 'BACKWARDS':
             return Token(T_BACKWARDS, 'BACKWARDS')
         
+        elif word_str == 'IF':
+            return Token(T_IF, 'IF')
+        elif word_str == 'THEN':
+            return Token(T_THEN, 'THEN')
+        elif word_str == 'ELSE':
+            return Token(T_ELSE, 'ELSE')
+        elif word_str == 'FI':
+            return Token(T_FI, 'FI')
+        
         else: 
             return Token(T_VALIDVAR, 'VALIDVAR') #Hay que agregar un return false si no es valido?
 
@@ -269,14 +282,20 @@ class Parser:
         self.tok_idx += 1
         if self.tok_idx < len(self.tokens):
             self.current_tok = self.tokens[self.tok_idx]
-        else: self.current_tok = None #no esta en el video
+        else: 
+            self.current_tok = None #no esta en el video
         return self.current_tok # no es necesario a menos de que necesitemos validar algo
     
     def parse(self):
         while self.current_tok is not None:
-            if (self.exec() or self.new()):
-                return True
-        return False
+            if (self.exec() or self.new() or 
+                self.parse_if_statement() or 
+                self.parse_do_while_loop() or 
+                self.parse_repeat_times_loop()):
+                continue
+            self.advance()
+        
+        return True
    
     def exec(self):
         tok = self.current_tok
@@ -505,10 +524,106 @@ class Parser:
             if self.current_tok.type == T_RPAR:
                     return True 
         return False # si no existe un (
-                
-                
+    
+    def parse_if_statement(self):
+        if self.current_tok.type != T_IF:
+            return False
+        self.advance()
+        
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            # Evaluación de la condición
+            if not self.parse_condition():
+                return False
+            if self.current_tok.type != T_RPAR:
+                return False
+            self.advance()
             
+            #  IF
+            if self.current_tok.type != T_THEN:
+                return False
+            self.advance()
+            if not self.block():
+                return False
             
+            # ELSE
+            if self.current_tok.type == T_ELSE:
+                self.advance()
+                if not self.block():
+                    return False
+            
+            # FI
+            if self.current_tok.type != T_FI:
+                return False
+            self.advance()
+            return True
+        
+        return False
+
+    def parse_do_while_loop(self):
+        if self.current_tok.type != T_DO:
+            return False
+        self.advance()
+        
+        if self.current_tok.type != T_LPAR:
+            return False
+        self.advance()
+        
+        # Condición
+        if not self.parse_condition():
+            return False
+        
+        if self.current_tok.type != T_RPAR:
+            return False
+        self.advance()
+        
+        #  DO
+        if not self.block():
+            return False
+        
+        # OD
+        if self.current_tok.type != T_OD:
+            return False
+        self.advance()
+        
+        return True
+
+    def parse_repeat_times_loop(self):
+        if self.current_tok.type == T_INT:
+            count = self.current_tok.value
+            self.advance()
+            if self.current_tok.type != T_TIMES:
+                return False
+            self.advance()
+            
+            # Procesar el contenido del bucle
+            if not self.block():
+                return False
+            
+            return True
+
+    def parse_condition(self):
+        condition = []
+        while self.current_tok.type in [T_VALIDVAR, T_FLOAT, T_NOT, T_QUESTION]:
+            if self.current_tok.type == T_NOT:
+                condition.append('NOT ')
+                self.advance()
+            elif self.current_tok.type == T_QUESTION:
+                condition.append('?')
+                self.advance()
+            
+            if self.current_tok.type == T_VALIDVAR:
+                var_name = self.current_tok.value
+                self.advance()
+                condition.append(var_name)
+            elif self.current_tok.type == T_FLOAT:
+                value = self.current_tok.value
+                self.advance()
+                condition.append(str(value))
+        
+        return ' '.join(condition)    
+
+
 #######
 #RUN
 ###################

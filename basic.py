@@ -90,7 +90,7 @@ DIGITS = '0123456789'
 LETRAS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' 
 T_INT = 'INT'
 T_FLOAT = 'FLOAT'
-
+T_QUESTION = '?'
 T_VALIDVAR = 'VALIDVAR'
 T_COMA = ','
 #Para 'TURNTOMY' y 'MOVES'
@@ -168,6 +168,9 @@ class Lexer:
                 self.advance()
             elif self.current_char == ',':
                 tokens.append(Token(T_COMA))
+                self.advance()
+            elif self.current_char == '?':
+                tokens.append(Token(T_QUESTION))
                 self.advance()
             else: #si no encontramso el caracter q estamos buscando debemos arrojar un error
                 pos_start = self.pos.copy()
@@ -251,7 +254,14 @@ class Lexer:
             return Token(T_FORWARD, 'FORWARD')
         elif word_str == 'BACKWARDS':
             return Token(T_BACKWARDS, 'BACKWARDS')
-        
+        elif word_str == 'IF':
+            return Token(T_IF, 'IF')
+        elif word_str == 'THEN':
+            return Token(T_THEN, 'THEN')
+        elif word_str == 'ELSE':
+            return Token(T_ELSE, 'ELSE')
+        elif word_str == 'FI':
+            return Token(T_FI, 'FI')
         else: 
             return Token(T_VALIDVAR, 'VALIDVAR') #Hay que agregar un return false si no es valido?
 
@@ -269,12 +279,15 @@ class Parser:
         self.tok_idx += 1
         if self.tok_idx < len(self.tokens):
             self.current_tok = self.tokens[self.tok_idx]
-        else: self.current_tok = None #no esta en el video
-        return self.current_tok # no es necesario a menos de que necesitemos validar algo
+        else: 
+            self.current_tok = None #no esta en el video
+        print(f"Advanced to: {self.current_tok}")
+    
     
     def parse(self):
         while self.current_tok is not None:
-            if (self.exec() or self.new()):
+            if (self.exec() or self.new() or  self.parse_if_statement() or 
+                self.parse_do_while_loop() or self.parse_repeat_times_loop()):
                 return True
         return False
    
@@ -285,6 +298,7 @@ class Parser:
             # Llamado al bloque
             if self.current_tok.type == T_LCOR:
                 if not (self.block()):
+                    ('aqui retorna')
                     return False
                 return True
         else: return False
@@ -339,40 +353,68 @@ class Parser:
         return False # Falso cuando NEW no est correcto
     
     def block(self):
-        if self.current_tok.type == T_LCOR:
-            self.advance()
-            corchete_abierto = 1
-            while corchete_abierto > 0:
+        if self.current_tok.type != T_LCOR:
+            print('no entra con corchete 345')
+            return False
+        print(self.current_tok.type)
+        self.advance()
+        corchete_abierto = 1
+            
+        while corchete_abierto > 0:
+            #Para no entrar en un loop infinito porque no  haya un par 
+            # completo de corchetes O no haya mas tokens
+            if self.current_tok is None:
+                print('siguiente es none 354')
+                return False
                 
-                #Para no entrar en un loop infinito porque no  haya un par 
-                # completo de corchetes O no haya mas tokens
-                if self.current_tok is None:
-                    print(self.current_tok)
-                    print("a")
-                    return False
-                
-                if self.current_tok.type == T_LCOR:
-                    corchete_abierto += 1
-                elif self.current_tok.type == T_RCOR:
-                    corchete_abierto -= 1
-                    if corchete_abierto == 0: 
-                        self.advance()
-                        return True
-                
-                if self.current_tok.type not in [T_LCOR, T_RCOR, T_NEW, T_EXEC]:
-                    print('b')
-                    return False
-                
-                if self.current_tok.type == T_NEW:
-                    if self.new():
-                        print('c')
-                        return True
-                elif self.current_tok.type == T_EXEC:
-                    if self.exec(): # not self para q siga el while
-                        return True
-                
-                
-                self.advance()
+            if self.current_tok.type == T_LCOR:
+                corchete_abierto += 1
+            elif self.current_tok.type == T_RCOR:
+                corchete_abierto -= 1
+                if corchete_abierto == 0:
+                    print('entra al break')
+                    break
+            else: 
+                if not self.instrucciones():
+                    print('False 366')
+                    return False  # si falla algun instruccion    
+            
+            if corchete_abierto != 0:
+                self.advance()    
+        
+        if corchete_abierto != 0:
+            print('corchetes 373')
+            return False        
+        
+        return True
+    
+    def instrucciones(self):
+        if self.current_tok.type == T_EXEC:
+            return self.exec()
+        elif self.current_tok.type == T_NEW:
+            return self.new()
+        elif self.current_tok.type == T_TURNTOMY:
+            return self.turntomy()
+        elif self.current_tok.type == T_TURNTOTHE:
+            return self.turntothe()
+        elif self.current_tok.type == T_WALK:
+            return self.walk()
+        elif self.current_tok.type == T_JUMP:
+            return self.jump()
+        elif self.current_tok.type == T_DROP:
+            return self.drop()
+        elif self.current_tok.type == T_PICK:
+            return self.pick()
+        elif self.current_tok.type == T_GRAB:
+            return self.grab()
+        elif self.current_tok.type == T_LETGO:
+            return self.letgo()
+        elif self.current_tok.type == T_POP:
+            return self.pop()
+        elif self.current_tok.type == T_NOP:
+            return self.nop()
+        elif self.current_tok.type == T_MOVES:
+            return self.moves()
                 
     def turntomy(self):
         if self.current_tok.type != T_TURNTOMY:
@@ -491,22 +533,130 @@ class Parser:
         
         return False
     
+    def nop(self):
+        return True
+    
     def moves(self):
         if self.current_tok.type != T_MOVES:
             return False
+    
         self.advance()
+        
         if self.current_tok.type == T_LPAR:
             self.advance() # primera direccion o RPAR si es vacio
+            
+            if self.current_tok.type == T_RPAR: # Lista de direcciones vacia
+                return True 
+            
             while self.current_tok.type != T_RPAR:
-                if self.current_tok.type == False:
-                    pass
+                if self.current_tok.type in [T_LEFT, T_RIGHT, T_FORWARD, T_BACKWARDS]:
+                    self.advance()
+                    if self.current_tok.type == T_COMA:
+                        self.advance()
+                        if self.current_tok.type == T_RPAR:
+                            return False
+                    elif self.current_tok.type == T_RPAR:
+                        return True
+                    
+        return False # si no esta correcto
+              
+    def parse_if_statement(self):
+        if self.current_tok.type != T_IF:
+            return False
+        self.advance()
+        
+        if self.current_tok.type == T_LPAR:
+            self.advance()
+            # Evaluación de la condición
+            if not self.parse_condition():
+                return False
+            if self.current_tok.type != T_RPAR:
+                return False
+            self.advance()
             
+            #  IF
+            if self.current_tok.type != T_THEN:
+                return False
+            self.advance()
+            if not self.block():
+                return False
             
-            if self.current_tok.type == T_RPAR:
-                    return True 
-        return False # si no existe un (
-                
-                
+            # ELSE
+            if self.current_tok.type == T_ELSE:
+                self.advance()
+                if not self.block():
+                    return False
+            
+            # FI
+            if self.current_tok.type != T_FI:
+                return False
+            self.advance()
+            return True
+        
+        return False
+
+    def parse_do_while_loop(self):
+        if self.current_tok.type != T_DO:
+            return False
+        self.advance()
+        
+        if self.current_tok.type != T_LPAR:
+            return False
+        self.advance()
+        
+        # Condición
+        if not self.parse_condition():
+            return False
+        
+        if self.current_tok.type != T_RPAR:
+            return False
+        self.advance()
+        
+        #  DO
+        if not self.block():
+            return False
+        
+        # OD
+        if self.current_tok.type != T_OD:
+            return False
+        self.advance()
+        
+        return True
+
+    def parse_repeat_times_loop(self):
+        if self.current_tok.type == T_INT:
+            count = self.current_tok.value
+            self.advance()
+            if self.current_tok.type != T_TIMES:
+                return False
+            self.advance()
+            
+            # Procesar el contenido del bucle
+            if not self.block():
+                return False
+            
+            return True
+
+    def parse_condition(self):
+        condition = []
+        while self.current_tok.type in [T_VALIDVAR, T_FLOAT, T_NOT, T_QUESTION]:
+            if self.current_tok.type == T_NOT:
+                condition.append('NOT ')
+                self.advance()
+            elif self.current_tok.type == T_QUESTION:
+                condition.append('?')
+                self.advance()
+            
+            if self.current_tok.type == T_VALIDVAR:
+                var_name = self.current_tok.value
+                self.advance()
+                condition.append(var_name)
+            elif self.current_tok.type == T_FLOAT:
+                value = self.current_tok.value
+                self.advance()
+                condition.append(str(value))
+        
+        return ' '.join(condition)                
             
             
 #######

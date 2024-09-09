@@ -139,7 +139,7 @@ class Lexer:
         tokens = []
 
         while self.current_char != None:
-            if self.current_char in ' \t': #ignorar espacios y tabulaciones
+            if self.current_char in ' \t\n': #ignorar espacios y tabulaciones
                 self.advance()
 
             elif self.current_char in DIGITS:
@@ -300,10 +300,9 @@ class Parser:
             # Llamado al bloque
             if self.current_tok.type == T_LCOR:
                 if not (self.block()):
-                    ('aqui retorna')
                     return False
                 return True
-        else: return False
+        return False
     
     def new(self):
         if self.current_tok is None:
@@ -356,9 +355,7 @@ class Parser:
     
     def block(self):
         if self.current_tok.type != T_LCOR:
-            print('no entra con corchete 345')
             return False
-        print(self.current_tok.type)
         self.advance()
         corchete_abierto = 1
             
@@ -366,7 +363,6 @@ class Parser:
             #Para no entrar en un loop infinito porque no  haya un par 
             # completo de corchetes O no haya mas tokens
             if self.current_tok is None:
-                print('siguiente es none 354')
                 return False
                 
             if self.current_tok.type == T_LCOR:
@@ -374,18 +370,18 @@ class Parser:
             elif self.current_tok.type == T_RCOR:
                 corchete_abierto -= 1
                 if corchete_abierto == 0:
-                    print('entra al break')
                     break
             else: 
                 if not self.instrucciones():
-                    print('False 366')
-                    return False  # si falla algun instruccion    
+                    return False  # si falla algun instruccion
+                
+                if self.current_tok.type != T_SEMICOLON:
+                    return False  
             
             if corchete_abierto != 0:
                 self.advance()    
         
         if corchete_abierto != 0:
-            print('corchetes 373')
             return False        
         
         return True
@@ -423,12 +419,11 @@ class Parser:
             return False
         self.advance()
         if self.current_tok.type == T_LPAR:
-            self.advance
+            self.advance()
             if self.current_tok.type in [T_LEFT, T_RIGHT, T_BACK]:
                 self.advance()
                 if self.current_tok.type == T_RPAR:
                     return True
-        
         return False # Si no es correcto
     
     def turntothe(self):
@@ -436,7 +431,7 @@ class Parser:
             return False
         self.advance()
         if self.current_tok.type == T_LPAR:
-            self.advance
+            self.advance()
             if self.current_tok.type in [T_NORTH, T_SOUTH, T_EAST, T_WEST]:
                 self.advance()
                 if self.current_tok.type == T_RPAR:

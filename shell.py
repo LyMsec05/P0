@@ -1,15 +1,22 @@
-#PRIMERO: CREAR UN LEXER
-# 1. El lexer revisara caracter por caracter y 
-# divide el texto en una lista que lo llamamos tokens.
-# 2. El token es un objeto simple que tiene un tipo y opcionalmente un valor.
+### Programa para iniciar la implementacion basica de un lexer y parser en python.
+### Por favor escribir el nombre del archivo a parsear (que esté en el workspace). 
+
 import basic
 
-while True:
-    text = input('codigo-> ')
-    result, error, parsed = basic.run('<stdin>', text)
+archivo = 'archivo.txt'
 
-    if error: print(error.as_string())
-    else: 
-        print(result)
-        print(parsed)
+def leer_txt(path):
+    with open(path, 'r') as file:
+        contenido = file.read()
+        print(contenido)
+        return (contenido)
     
+
+text = leer_txt(archivo)
+result, error, ToF_parse = basic.run('<stdin>', text)
+
+if error: 
+    print(error.as_string())
+else: 
+    print(result)
+    print(ToF_parse)
